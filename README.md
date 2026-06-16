@@ -1,1 +1,372 @@
 # jeuxsiteweb
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Serpent du Verger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-wood:#caa468;
+    --bg-wood-dark:#9c7c4d;
+    --cabinet:#2e4a3f;
+    --cabinet-dark:#1f352c;
+    --screen:#16241e;
+    --cream:#f4ead6;
+    --gold:#e8b34c;
+    --snake:#5fae71;
+    --snake-dark:#3f8a52;
+    --apple:#d1495b;
+    --shadow: rgba(0,0,0,0.35);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: linear-gradient(180deg, var(--bg-wood) 0%, var(--bg-wood-dark) 100%);
+    font-family:'Space Mono', monospace;
+    color:var(--cream);
+    padding:24px;
+  }
+
+  .cabinet{
+    background: linear-gradient(145deg, var(--cabinet), var(--cabinet-dark));
+    border-radius:24px;
+    padding:28px 28px 36px;
+    box-shadow: 0 20px 40px var(--shadow), inset 0 0 0 4px rgba(0,0,0,0.15);
+    max-width:480px;
+    width:100%;
+  }
+
+  .marquee{
+    text-align:center;
+    font-family:'Press Start 2P', monospace;
+    font-size:15px;
+    color:var(--gold);
+    letter-spacing:1px;
+    margin-bottom:6px;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  }
+
+  .subtitle{
+    text-align:center;
+    font-size:11px;
+    color:var(--cream);
+    opacity:0.65;
+    margin-bottom:18px;
+  }
+
+  .screen-frame{
+    background: var(--screen);
+    border-radius:10px;
+    padding:10px;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.6), 0 0 0 6px var(--cabinet-dark);
+    position:relative;
+  }
+
+  canvas{
+    display:block;
+    width:100%;
+    background: var(--screen);
+    border-radius:4px;
+    image-rendering:pixelated;
+  }
+
+  .scanlines{
+    position:absolute;
+    inset:10px;
+    border-radius:4px;
+    pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.08) 3px
+    );
+  }
+
+  .hud{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:18px 4px 14px;
+    font-size:12px;
+  }
+
+  .hud .label{ opacity:0.6; font-size:10px; display:block; margin-bottom:2px; }
+  .hud .value{ color:var(--gold); font-size:16px; font-weight:bold; }
+
+  .message{
+    text-align:center;
+    font-size:11px;
+    line-height:1.7;
+    opacity:0.85;
+    min-height:32px;
+  }
+
+  .controls{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:14px;
+  }
+
+  button{
+    font-family:'Space Mono', monospace;
+    font-weight:bold;
+    font-size:12px;
+    padding:10px 18px;
+    border-radius:8px;
+    border:none;
+    background:var(--gold);
+    color:var(--cabinet-dark);
+    cursor:pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+    transition: transform 0.05s ease;
+  }
+  button:active{ transform: translateY(3px); box-shadow:none; }
+
+  .dpad{
+    display:grid;
+    grid-template-columns:48px 48px 48px;
+    grid-template-rows:42px 42px 42px;
+    gap:6px;
+    justify-content:center;
+    margin-top:16px;
+  }
+  .dpad button{
+    padding:0;
+    font-size:16px;
+    background: rgba(244,234,214,0.12);
+    color:var(--cream);
+    box-shadow:none;
+  }
+  .dpad .up{ grid-column:2; grid-row:1; }
+  .dpad .left{ grid-column:1; grid-row:2; }
+  .dpad .down{ grid-column:2; grid-row:2; }
+  .dpad .right{ grid-column:3; grid-row:2; }
+
+  @media (hover:hover){ .dpad{ display:none; } }
+</style>
+</head>
+<body>
+
+<div class="cabinet">
+  <div class="marquee">LE SERPENT DU VERGER</div>
+  <div class="subtitle">Flèches ou WASD pour bouger</div>
+
+  <div class="screen-frame">
+    <canvas id="game" width="320" height="320"></canvas>
+    <div class="scanlines"></div>
+  </div>
+
+  <div class="hud">
+    <div>
+      <span class="label">SCORE</span>
+      <span class="value" id="score">0</span>
+    </div>
+    <div style="text-align:right;">
+      <span class="label">MEILLEUR</span>
+      <span class="value" id="best">0</span>
+    </div>
+  </div>
+
+  <div class="message" id="message">Appuie sur une flèche pour commencer</div>
+
+  <div class="controls">
+    <button id="restart">Recommencer</button>
+  </div>
+
+  <div class="dpad">
+    <button class="up" data-dir="up">▲</button>
+    <button class="left" data-dir="left">◀</button>
+    <button class="down" data-dir="down">▼</button>
+    <button class="right" data-dir="right">▶</button>
+  </div>
+</div>
+
+<script>
+// ---- Configuration de base ----
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const cellSize = 16;          // taille d'une case en pixels
+const gridCount = canvas.width / cellSize; // nombre de cases par ligne/colonne
+
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const messageEl = document.getElementById('message');
+const restartBtn = document.getElementById('restart');
+
+let best = Number(localStorageGet('snakeBest')) || 0;
+bestEl.textContent = best;
+
+// localStorage peut être indisponible dans certains contextes (ex: aperçu sandbox).
+// On protège donc chaque accès.
+function localStorageGet(key){
+  try { return localStorage.getItem(key); } catch(e){ return null; }
+}
+function localStorageSet(key, value){
+  try { localStorage.setItem(key, value); } catch(e){ /* ignore */ }
+}
+
+// ---- État du jeu ----
+let snake, direction, nextDirection, food, score, speed, loopId, running, started;
+
+function resetGame(){
+  snake = [
+    {x: 7, y: 8},
+    {x: 6, y: 8},
+    {x: 5, y: 8}
+  ];
+  direction = 'right';
+  nextDirection = 'right';
+  score = 0;
+  speed = 130; // ms entre chaque tick, plus petit = plus rapide
+  running = false;
+  started = false;
+  scoreEl.textContent = score;
+  placeFood();
+  messageEl.textContent = 'Appuie sur une flèche pour commencer';
+  draw();
+}
+
+function placeFood(){
+  let valid = false;
+  while(!valid){
+    food = {
+      x: Math.floor(Math.random() * gridCount),
+      y: Math.floor(Math.random() * gridCount)
+    };
+    valid = !snake.some(seg => seg.x === food.x && seg.y === food.y);
+  }
+}
+
+// ---- Boucle de jeu ----
+function tick(){
+  direction = nextDirection;
+  const head = {...snake[0]};
+
+  if(direction === 'up') head.y -= 1;
+  if(direction === 'down') head.y += 1;
+  if(direction === 'left') head.x -= 1;
+  if(direction === 'right') head.x += 1;
+
+  // Collision avec les murs
+  if(head.x < 0 || head.x >= gridCount || head.y < 0 || head.y >= gridCount){
+    return gameOver();
+  }
+  // Collision avec soi-même
+  if(snake.some(seg => seg.x === head.x && seg.y === head.y)){
+    return gameOver();
+  }
+
+  snake.unshift(head);
+
+  if(head.x === food.x && head.y === food.y){
+    score += 1;
+    scoreEl.textContent = score;
+    placeFood();
+    // La vitesse augmente très légèrement avec le score
+    if(speed > 60) speed -= 3;
+    restartLoop();
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function restartLoop(){
+  clearInterval(loopId);
+  loopId = setInterval(tick, speed);
+}
+
+function gameOver(){
+  running = false;
+  clearInterval(loopId);
+  if(score > best){
+    best = score;
+    bestEl.textContent = best;
+    localStorageSet('snakeBest', best);
+    messageEl.textContent = 'Nouveau record : ' + score + ' 🎉';
+  } else {
+    messageEl.textContent = 'Perdu ! Score : ' + score + ' — recommence';
+  }
+}
+
+// ---- Dessin ----
+function draw(){
+  ctx.fillStyle = '#16241e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Pomme
+  ctx.fillStyle = '#d1495b';
+  roundedCell(food.x, food.y, 4);
+
+  // Serpent
+  snake.forEach((seg, i) => {
+    ctx.fillStyle = i === 0 ? '#7cc98d' : '#5fae71';
+    roundedCell(seg.x, seg.y, 3);
+  });
+}
+
+function roundedCell(gx, gy, r){
+  const x = gx * cellSize + 1;
+  const y = gy * cellSize + 1;
+  const size = cellSize - 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + size, y, x + size, y + size, r);
+  ctx.arcTo(x + size, y + size, x, y + size, r);
+  ctx.arcTo(x, y + size, x, y, r);
+  ctx.arcTo(x, y, x + size, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ---- Contrôles ----
+function setDirection(dir){
+  const opposites = {up:'down', down:'up', left:'right', right:'left'};
+  // On empêche de faire volte-face instantanément sur soi-même
+  if(opposites[dir] === direction) return;
+  nextDirection = dir;
+
+  if(!started){
+    started = true;
+    running = true;
+    messageEl.textContent = '';
+    restartLoop();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  const map = {
+    ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+    w:'up', s:'down', a:'left', d:'right',
+    W:'up', S:'down', A:'left', D:'right'
+  };
+  if(map[e.key]){
+    e.preventDefault();
+    setDirection(map[e.key]);
+  }
+});
+
+document.querySelectorAll('.dpad button').forEach(btn => {
+  btn.addEventListener('click', () => setDirection(btn.dataset.dir));
+});
+
+restartBtn.addEventListener('click', resetGame);
+
+// ---- Démarrage ----
+resetGame();
+</script>
+
+</body>
+</html>
